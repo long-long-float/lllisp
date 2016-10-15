@@ -35,7 +35,7 @@ namespace Lisp {
     builder.CreateRet(builder.getInt32(0));
   }
 
-  void Compiler::compile_expr(Object* obj) {
+  llvm::Value* Compiler::compile_expr(Object* obj) {
     std::type_info const & id = typeid(*obj);
     if(id == typeid(Cons)) {
       auto list = (Cons*)obj;
@@ -44,10 +44,12 @@ namespace Lisp {
         auto str = regard<String>(list->get(1))->value;
         auto const_str = builder.CreateGlobalStringPtr(str.c_str());
         builder.CreateCall(putsFunc, const_str);
+        return nullptr; // TODO: 空のconsを返す
       }
       else if(name == "printn") {
-        auto num = regard<Integer>(list->get(1))->value;
-        builder.CreateCall(printnFunc, builder.getInt32(num));
+        auto num = compile_expr(list->get(1));
+        builder.CreateCall(printnFunc, num);
+        return nullptr; // TODO: 空のconsを返す
       }
       else if(name == "type") {
       }
@@ -60,6 +62,9 @@ namespace Lisp {
       else if(name == "atom") {
       }
       else if(name == "+") {
+        auto n1 = regard<Integer>(list->get(1))->value;
+        auto n2 = regard<Integer>(list->get(2))->value;
+        return builder.CreateAdd(builder.getInt32(n1), builder.getInt32(n2));
       }
       else if(name == "-") {
       }
@@ -123,6 +128,8 @@ namespace Lisp {
     }
     else if(id == typeid(Symbol)) {
     }
+
+    return nullptr;
   }
 
   template<typename T> bool instance_of(Object *expr) {
