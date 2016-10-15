@@ -46,6 +46,7 @@ namespace Lisp {
     llvm::Constant *putsFunc;
     llvm::Constant *printnFunc;
 
+    llvm::Value* compile_exprs(Cons* exprs);
     llvm::Value* compile_expr(Object* obj);
 
     template<typename T> T* regard(Object* expr);

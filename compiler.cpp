@@ -1,5 +1,7 @@
 #include "compiler.h"
 
+#define EACH_CONS(var, init) for(Cons* var = regard<Cons>(init) ; typeid(*var) != typeid(Nil) ; var = (Cons*)regard<Cons>(var)->cdr)
+
 namespace Lisp {
   Compiler::Compiler() : context(llvm::getGlobalContext()), module(new llvm::Module("top", context)), builder(llvm::IRBuilder<>(context)) {
     // int main()
@@ -35,15 +37,25 @@ namespace Lisp {
     builder.CreateRet(builder.getInt32(0));
   }
 
+  llvm::Value* Compiler::compile_exprs(Cons *exprs) {
+    llvm::Value *result = nullptr;
+    EACH_CONS(expr, exprs) {
+      result = compile_expr(expr->get(0));
+    }
+    return result;
+  }
+
   llvm::Value* Compiler::compile_expr(Object* obj) {
     std::type_info const & id = typeid(*obj);
     if(id == typeid(Cons)) {
       auto list = (Cons*)obj;
       auto name = regard<Symbol>(list->get(0))->value;
       if(name == "print") {
-        auto str = regard<String>(list->get(1))->value;
-        auto const_str = builder.CreateGlobalStringPtr(str.c_str());
-        builder.CreateCall(putsFunc, const_str);
+        // TODO: list->get(1)の型を予め決定しておく
+        // auto str = regard<String>(list->get(1))->value;
+        auto str = compile_expr(list->get(1));
+
+        builder.CreateCall(putsFunc, str);
         return nullptr; // TODO: 空のconsを返す
       }
       else if(name == "printn") {
@@ -71,6 +83,9 @@ namespace Lisp {
       else if(name == "*") {
       }
       else if(name == "=") {
+        auto n1 = regard<Integer>(list->get(1))->value;
+        auto n2 = regard<Integer>(list->get(2))->value;
+        return builder.CreateICmpEQ(builder.getInt32(n1), builder.getInt32(n2));
       }
       else if(name == ">") {
       }
@@ -81,6 +96,47 @@ namespace Lisp {
       else if(name == "lambda") {
       }
       else if(name == "cond") {
+        // TODO: n(>=2)の条件に対応
+        auto condBB = llvm::BasicBlock::Create(module->getContext(), "cond", mainFunc);
+        builder.CreateBr(condBB);
+        builder.SetInsertPoint(condBB);
+
+        auto cond = compile_expr(regard<Cons>(list->get(1))->get(0));
+        auto thenBB = llvm::BasicBlock::Create(module->getContext(), "then", mainFunc);
+        auto elseBB = llvm::BasicBlock::Create(module->getContext(), "else");
+        auto mergeBB = llvm::BasicBlock::Create(module->getContext(), "endcond");
+
+        builder.CreateCondBr(cond, thenBB, elseBB);
+
+        // then
+        builder.SetInsertPoint(thenBB);
+
+        // TODO: 値を返す
+        auto thenValue = compile_expr(regard<Cons>(list->get(1))->get(1));
+        builder.CreateBr(mergeBB);
+
+        thenBB = builder.GetInsertBlock();
+
+        // else
+        mainFunc->getBasicBlockList().push_back(elseBB);
+        builder.SetInsertPoint(elseBB);
+
+        // TODO: 値を返す
+        auto elseValue = compile_exprs(regard<Cons>(list->get(2)));
+        builder.CreateBr(mergeBB);
+
+        elseBB = builder.GetInsertBlock();
+
+        // endif
+        mainFunc->getBasicBlockList().push_back(mergeBB);
+        builder.SetInsertPoint(mergeBB);
+
+        // TODO:
+        auto phi = builder.CreatePHI(builder.getInt8PtrTy(), 2, "iftmp");
+        phi->addIncoming(thenValue, thenBB);
+        phi->addIncoming(elseValue, elseBB);
+
+        return phi;
       }
       else if(name == "cons") {
       }
@@ -126,7 +182,10 @@ namespace Lisp {
         */
       }
     }
-    else if(id == typeid(Symbol)) {
+    else if(id == typeid(String)) {
+      return builder.CreateGlobalStringPtr(regard<String>(obj)->value.c_str());
+    } else {
+      throw std::logic_error("unknown expr: " + obj->lisp_str());
     }
 
     return nullptr;

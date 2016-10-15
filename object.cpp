@@ -8,7 +8,7 @@ namespace Lisp {
 
   std::string Integer::lisp_str() { return std::to_string(value); }
 
-  std::string Symbol::lisp_str() { return '"' + value + '"'; }
+  std::string Symbol::lisp_str() { return ':' + value; }
 
   std::string Nil::lisp_str() { return "nil"; }
 
