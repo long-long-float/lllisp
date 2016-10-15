@@ -26,22 +26,6 @@ using std::cout;
 using std::endl;
 
 namespace Lisp {
-  class Error : public std::logic_error {
-  public:
-    Error(std::string msg, Location loc) : std::logic_error(msg + " @ " + loc.str()) {}
-  };
-
-  class NameError : public Error {
-  public:
-    NameError(Symbol *sym) : Error("undefined local variable " + sym->value, sym->loc) {}
-  };
-
-  class TypeError : public Error  {
-  public:
-    TypeError(Object* obj, std::string expected_type) :
-      Error(obj->lisp_str() + " is not " + expected_type, obj->loc) {}
-  };
-
   class Parser {
   public:
     std::vector<Object*> parse(const std::string &code) {
