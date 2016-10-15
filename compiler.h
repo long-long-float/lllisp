@@ -33,7 +33,9 @@ namespace Lisp {
     Compiler();
     ~Compiler();
 
-    std::string compile(std::vector<Object*> &ast);
+    void compile(std::vector<Object*> &ast);
+
+    llvm::Module* getModule() { return module; }
 
   private:
     llvm::LLVMContext &context;

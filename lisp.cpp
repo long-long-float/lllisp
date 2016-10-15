@@ -225,9 +225,17 @@ int main() {
   auto ast = Lisp::parse(code);
   cout << ast[0]->lisp_str() << endl;
 
-  cout << Lisp::compile(ast) << endl;
+  Lisp::Compiler compiler;
+  compiler.compile(ast);
 
   Lisp::clean_up();
+
+  compiler.getModule()->dump();
+
+  // generate bitcode
+  std::error_code error_info;
+  llvm::raw_fd_ostream os("a.bc", error_info, llvm::sys::fs::OpenFlags::F_None);
+  llvm::WriteBitcodeToFile(compiler.getModule(), os);
 
   return 0;
 }

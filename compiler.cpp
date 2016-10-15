@@ -6,6 +6,9 @@ namespace Lisp {
     auto *funcType = llvm::FunctionType::get(builder.getInt32Ty(), false);
     mainFunc = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, "main", module);
 
+    auto *entry = llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
+    builder.SetInsertPoint(entry);
+
     // int puts(char*)
     std::vector<llvm::Type*> putsArgs;
     putsArgs.push_back(builder.getInt8PtrTy());
@@ -18,11 +21,12 @@ namespace Lisp {
     delete module;
   }
 
-  std::string Compiler::compile(std::vector<Object*> &ast) {
+  void Compiler::compile(std::vector<Object*> &ast) {
     for (auto &object : ast) {
       compile_expr(object);
     }
-    return "";
+
+    builder.CreateRet(builder.getInt32(0));
   }
 
   void Compiler::compile_expr(Object* obj) {
@@ -31,7 +35,9 @@ namespace Lisp {
       auto list = (Cons*)obj;
       auto name = regard<Symbol>(list->get(0))->value;
       if(name == "print") {
-
+        auto str = regard<String>(list->get(1))->value;
+        auto const_str = builder.CreateGlobalStringPtr(str.c_str());
+        builder.CreateCall(putsFunc, const_str);
       }
       else if(name == "type") {
       }
@@ -114,10 +120,5 @@ namespace Lisp {
       throw TypeError(expr, std::string(typeid(T).name()));
     }
     return (T*)expr;
-  }
-
-  std::string compile(std::vector<Object*> &ast) {
-    Compiler c;
-    return c.compile(ast);
   }
 }

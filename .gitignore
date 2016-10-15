@@ -33,3 +33,6 @@ lisp
 
 # ctags file
 tags
+
+*.bc
+*.s
