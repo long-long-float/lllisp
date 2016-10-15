@@ -238,7 +238,10 @@ int main() {
   using namespace std;
 
   string code((istreambuf_iterator<char>(cin)), istreambuf_iterator<char>());
-  cout << Lisp::parse(code)[0]->lisp_str() << endl;
+  auto ast = Lisp::parse(code);
+  cout << ast[0]->lisp_str() << endl;
+
+  cout << Lisp::compile(ast) << endl;
 
   Lisp::clean_up();
 

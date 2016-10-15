@@ -48,7 +48,6 @@ namespace Lisp {
     std::string lisp_str();
   };
 
-  // TODO: RubyみたくObject*に埋め込みたい
   class Nil : public Object {
   public:
     Nil(Location aloc = Location()) : Object(aloc) {}
