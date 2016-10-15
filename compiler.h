@@ -44,6 +44,7 @@ namespace Lisp {
 
     llvm::Function *mainFunc;
     llvm::Constant *putsFunc;
+    llvm::Constant *printnFunc;
 
     void compile_expr(Object* obj);
 

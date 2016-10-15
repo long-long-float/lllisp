@@ -15,6 +15,12 @@ namespace Lisp {
     llvm::ArrayRef<llvm::Type*> putsArgsRef(putsArgs);
     auto *putsType = llvm::FunctionType::get(builder.getInt32Ty(), putsArgsRef, false);
     putsFunc = module->getOrInsertFunction("puts", putsType);
+
+    // void printn(int)
+    std::vector<llvm::Type*> printnArgs{ builder.getInt32Ty() };
+    llvm::ArrayRef<llvm::Type*> printnArgsRef(printnArgs);
+    auto *printnType = llvm::FunctionType::get(builder.getVoidTy(), printnArgsRef, false);
+    printnFunc = module->getOrInsertFunction("printn", printnType);
   }
 
   Compiler::~Compiler() {
@@ -38,6 +44,10 @@ namespace Lisp {
         auto str = regard<String>(list->get(1))->value;
         auto const_str = builder.CreateGlobalStringPtr(str.c_str());
         builder.CreateCall(putsFunc, const_str);
+      }
+      else if(name == "printn") {
+        auto num = regard<Integer>(list->get(1))->value;
+        builder.CreateCall(printnFunc, builder.getInt32(num));
       }
       else if(name == "type") {
       }
@@ -113,6 +123,10 @@ namespace Lisp {
     }
     else if(id == typeid(Symbol)) {
     }
+  }
+
+  template<typename T> bool instance_of(Object *expr) {
+    return typeid(*expr) != typeid(T);
   }
 
   template<typename T> T* Compiler::regard(Object* expr) {
