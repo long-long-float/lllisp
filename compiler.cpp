@@ -8,8 +8,8 @@ namespace Lisp {
     auto *funcType = llvm::FunctionType::get(builder.getInt32Ty(), false);
     mainFunc = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, "main", module);
 
-    auto *entry = llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
-    builder.SetInsertPoint(entry);
+    main_entry = llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
+    builder.SetInsertPoint(main_entry);
 
     // int puts(char*)
     std::vector<llvm::Type*> putsArgs;
@@ -78,6 +78,52 @@ namespace Lisp {
         cur_env->set(val_name, var_pointer);
         return val;
       }
+      else if(name == "defun") {
+        auto func_name = regard<Symbol>(list->get(1))->value;
+        auto args = regard<Cons>(list->get(2));
+        auto body = regard<Cons>(list->tail(3));
+
+        // TODO: 引数、返り値ともにint以外に対応させる
+        std::vector<llvm::Type*> llvm_args;
+        EACH_CONS(arg, args) {
+          llvm_args.push_back(builder.getInt32Ty());
+        }
+        llvm::ArrayRef<llvm::Type*> llvm_args_ref(llvm_args);
+        auto func_type = llvm::FunctionType::get(builder.getInt32Ty(), llvm_args_ref, false);
+        auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, func_name, module);
+
+        Environment *env = new Environment();
+
+        auto arg_itr = func->arg_begin();
+        EACH_CONS(arg, args) {
+          auto arg_name = regard<Symbol>(arg->get(0))->value;
+          arg_itr->setName(arg_name);
+
+          arg_itr++;
+        }
+
+        cur_env->set(func_name, func);
+
+        cur_env = cur_env->down_env(env);
+
+        auto entry = llvm::BasicBlock::Create(context, "entrypoint", func);
+        builder.SetInsertPoint(entry);
+
+        auto &vs_table = func->getValueSymbolTable();
+        EACH_CONS(arg, args) {
+          auto arg_name = regard<Symbol>(arg->get(0))->value;
+          auto alloca = builder.CreateAlloca(builder.getInt32Ty(), 0, arg_name);
+          builder.CreateStore(vs_table.lookup(arg_name), alloca);
+          env->set(arg_name, alloca);
+        }
+
+        auto result = compile_exprs(body);
+        builder.CreateRet(result);
+
+        cur_env = cur_env->up_env();
+
+        builder.SetInsertPoint(main_entry);
+      }
       else if(name == "defmacro") {
       }
       else if(name == "atom") {
@@ -120,7 +166,6 @@ namespace Lisp {
         // then
         builder.SetInsertPoint(thenBB);
 
-        // TODO: 値を返す
         auto thenValue = compile_expr(regard<Cons>(list->get(1))->get(1));
         builder.CreateBr(mergeBB);
 
@@ -130,7 +175,6 @@ namespace Lisp {
         mainFunc->getBasicBlockList().push_back(elseBB);
         builder.SetInsertPoint(elseBB);
 
-        // TODO: 値を返す
         auto elseValue = compile_exprs(regard<Cons>(list->get(2)));
         builder.CreateBr(mergeBB);
 
@@ -152,7 +196,22 @@ namespace Lisp {
       else if(name == "list") {
       }
       else {
-        throw std::logic_error("undefined function: " + name);
+        auto func = cur_env->get(name);
+
+        if (!func) {
+          throw std::logic_error("undefined function: " + name);
+        }
+
+        // TODO: 対象の関数の引数情報などを保存してチェックする
+        auto args = list->tail(1);
+        std::vector<llvm::Value*> callee_args;
+        EACH_CONS(arg, args) {
+          callee_args.push_back(compile_expr(arg->get(0)));
+        }
+        llvm::ArrayRef<llvm::Value*> callee_args_ref(callee_args);
+
+        return builder.CreateCall((llvm::Function*)func, callee_args_ref);
+
         /*
         auto obj = evaluate(list->get(0));
         if(typeid(*obj) == typeid(Lambda)) {
@@ -192,7 +251,12 @@ namespace Lisp {
       }
     }
     else if(id == typeid(Symbol)) {
-      return builder.CreateLoad(cur_env->get(regard<Symbol>(obj)->value));
+      auto var_name = regard<Symbol>(obj)->value;
+      auto var = cur_env->get(var_name);
+      if (!var) {
+        throw std::logic_error("undefined variable: " + var_name);
+      }
+      return builder.CreateLoad(var);
     }
     else if(id == typeid(String)) {
       return builder.CreateGlobalStringPtr(regard<String>(obj)->value.c_str());
