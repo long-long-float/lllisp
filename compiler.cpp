@@ -23,6 +23,8 @@ namespace Lisp {
     llvm::ArrayRef<llvm::Type*> printnArgsRef(printnArgs);
     auto *printnType = llvm::FunctionType::get(builder.getVoidTy(), printnArgsRef, false);
     printnFunc = module->getOrInsertFunction("printn", printnType);
+
+    root_env = cur_env = new Environment();
   }
 
   Compiler::~Compiler() {
@@ -68,15 +70,22 @@ namespace Lisp {
       else if(name == "tail") {
       }
       else if(name == "setq") {
+        auto val = compile_expr(list->get(2));
+        auto val_name = regard<Symbol>(list->get(1))->value;
+        // TODO: 型をInt以外使えるようにする
+        auto var_pointer = builder.CreateAlloca(builder.getInt32Ty(), nullptr, val_name);
+        builder.CreateStore(val, var_pointer);
+        cur_env->set(val_name, var_pointer);
+        return val;
       }
       else if(name == "defmacro") {
       }
       else if(name == "atom") {
       }
       else if(name == "+") {
-        auto n1 = regard<Integer>(list->get(1))->value;
-        auto n2 = regard<Integer>(list->get(2))->value;
-        return builder.CreateAdd(builder.getInt32(n1), builder.getInt32(n2));
+        auto n1 = compile_expr(list->get(1));
+        auto n2 = compile_expr(list->get(2));
+        return builder.CreateAdd(n1, n2);
       }
       else if(name == "-") {
       }
@@ -182,8 +191,14 @@ namespace Lisp {
         */
       }
     }
+    else if(id == typeid(Symbol)) {
+      return builder.CreateLoad(cur_env->get(regard<Symbol>(obj)->value));
+    }
     else if(id == typeid(String)) {
       return builder.CreateGlobalStringPtr(regard<String>(obj)->value.c_str());
+    }
+    else if(id == typeid(Integer)) {
+      return builder.getInt32(regard<Integer>(obj)->value);
     } else {
       throw std::logic_error("unknown expr: " + obj->lisp_str());
     }

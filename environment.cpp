@@ -16,13 +16,13 @@ namespace Lisp {
     }
   }
 
-  void Environment::set(key &name, Object* val) {
+  void Environment::set(key &name, llvm::Value* val) {
     auto env = get_env_by_name(name);
     if(env) env->locals[name] = val;
     else locals[name] = val;
   }
 
-  Object* Environment::get(key &name) {
+  llvm::Value* Environment::get(key &name) {
     auto env = get_env_by_name(name);
     if(env) return env->locals[name];
     return nullptr;
@@ -49,7 +49,8 @@ namespace Lisp {
     GCObject::mark();
 
     for(auto& kv : locals) {
-      kv.second->mark();
+      // FIXME
+      // kv.second->mark();
     }
     if(child) child->mark();
   }

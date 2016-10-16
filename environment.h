@@ -2,16 +2,15 @@
 
 #include "gc.h"
 
+#include <llvm/IR/Value.h>
 #include <string>
 #include <map>
 
 namespace Lisp {
-  class Object;
-
   class Environment : public GCObject {
     typedef std::string key;
 
-    std::map<key, Object*> locals;
+    std::map<key, llvm::Value*> locals;
 
     Environment *parent, *child;
     Environment *lexical_parent;
@@ -23,8 +22,8 @@ namespace Lisp {
 
     Environment() : parent(nullptr), child(nullptr), lexical_parent(nullptr) {}
 
-    void set(key &name, Object* val);
-    Object* get(key &name);
+    void set(key &name, llvm::Value* val_pointer);
+    llvm::Value* get(key &name);
 
     Environment* down_env(Environment *new_env);
     Environment* up_env();

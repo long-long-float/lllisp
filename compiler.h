@@ -10,6 +10,7 @@
 #include <string>
 
 #include "object.h"
+#include "environment.h"
 
 namespace Lisp {
   class Error : public std::logic_error {
@@ -48,6 +49,8 @@ namespace Lisp {
 
     llvm::Value* compile_exprs(Cons* exprs);
     llvm::Value* compile_expr(Object* obj);
+
+    Environment *root_env, *cur_env;
 
     template<typename T> T* regard(Object* expr);
   };
