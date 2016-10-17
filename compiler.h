@@ -48,6 +48,8 @@ namespace Lisp {
     llvm::Constant *putsFunc;
     llvm::Constant *printnFunc;
 
+    llvm::Function *current_func;
+
     llvm::BasicBlock *main_entry;
 
     llvm::Value* compile_exprs(Cons* exprs);

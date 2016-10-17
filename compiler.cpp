@@ -6,7 +6,7 @@ namespace Lisp {
   Compiler::Compiler() : context(llvm::getGlobalContext()), module(new llvm::Module("top", context)), builder(llvm::IRBuilder<>(context)) {
     // int main()
     auto *funcType = llvm::FunctionType::get(builder.getInt32Ty(), false);
-    mainFunc = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, "main", module);
+    current_func = mainFunc = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, "main", module);
 
     main_entry = llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
     builder.SetInsertPoint(main_entry);
@@ -113,8 +113,13 @@ namespace Lisp {
           env->set(arg_name, alloca);
         }
 
+        auto prev_func = current_func;
+        current_func = func;
+
         auto result = compile_exprs(body);
         builder.CreateRet(result);
+
+        current_func = prev_func;
 
         cur_env = cur_env->up_env();
 
@@ -160,12 +165,12 @@ namespace Lisp {
       }
       else if(name == "cond") {
         // TODO: n(>=2)の条件に対応
-        auto condBB = llvm::BasicBlock::Create(module->getContext(), "cond", mainFunc);
+        auto condBB = llvm::BasicBlock::Create(module->getContext(), "cond", current_func);
         builder.CreateBr(condBB);
         builder.SetInsertPoint(condBB);
 
         auto cond = compile_expr(regard<Cons>(list->get(1))->get(0));
-        auto thenBB = llvm::BasicBlock::Create(module->getContext(), "then", mainFunc);
+        auto thenBB = llvm::BasicBlock::Create(module->getContext(), "then", current_func);
         auto elseBB = llvm::BasicBlock::Create(module->getContext(), "else");
         auto mergeBB = llvm::BasicBlock::Create(module->getContext(), "endcond");
 
@@ -180,7 +185,7 @@ namespace Lisp {
         thenBB = builder.GetInsertBlock();
 
         // else
-        mainFunc->getBasicBlockList().push_back(elseBB);
+        current_func->getBasicBlockList().push_back(elseBB);
         builder.SetInsertPoint(elseBB);
 
         auto elseValue = compile_exprs(regard<Cons>(list->get(2)));
@@ -189,7 +194,7 @@ namespace Lisp {
         elseBB = builder.GetInsertBlock();
 
         // endif
-        mainFunc->getBasicBlockList().push_back(mergeBB);
+        current_func->getBasicBlockList().push_back(mergeBB);
         builder.SetInsertPoint(mergeBB);
 
         // TODO:
@@ -198,7 +203,8 @@ namespace Lisp {
         } else if (!elseValue) {
           return thenValue;
         } else {
-          auto phi = builder.CreatePHI(builder.getInt8PtrTy(), 2, "iftmp");
+          // auto phi = builder.CreatePHI(builder.getInt8PtrTy(), 2, "iftmp");
+          auto phi = builder.CreatePHI(builder.getInt32Ty(), 2, "iftmp");
           phi->addIncoming(thenValue, thenBB);
           phi->addIncoming(elseValue, elseBB);
 
