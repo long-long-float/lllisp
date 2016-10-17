@@ -65,10 +65,6 @@ namespace Lisp {
         builder.CreateCall(printnFunc, num);
         return nullptr; // TODO: 空のconsを返す
       }
-      else if(name == "type") {
-      }
-      else if(name == "tail") {
-      }
       else if(name == "setq") {
         auto val = compile_expr(list->get(2));
         auto val_name = regard<Symbol>(list->get(1))->value;
@@ -150,6 +146,9 @@ namespace Lisp {
       }
       else if(name == "lambda") {
       }
+      else if(name == "progn") {
+        return compile_exprs(list->tail(1));
+      }
       else if(name == "cond") {
         // TODO: n(>=2)の条件に対応
         auto condBB = llvm::BasicBlock::Create(module->getContext(), "cond", mainFunc);
@@ -185,11 +184,17 @@ namespace Lisp {
         builder.SetInsertPoint(mergeBB);
 
         // TODO:
-        auto phi = builder.CreatePHI(builder.getInt8PtrTy(), 2, "iftmp");
-        phi->addIncoming(thenValue, thenBB);
-        phi->addIncoming(elseValue, elseBB);
+        if (!thenValue) {
+          return elseValue;
+        } else if (!elseValue) {
+          return thenValue;
+        } else {
+          auto phi = builder.CreatePHI(builder.getInt8PtrTy(), 2, "iftmp");
+          phi->addIncoming(thenValue, thenBB);
+          phi->addIncoming(elseValue, elseBB);
 
-        return phi;
+          return phi;
+        }
       }
       else if(name == "cons") {
       }
