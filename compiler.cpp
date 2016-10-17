@@ -130,15 +130,24 @@ namespace Lisp {
         return builder.CreateAdd(n1, n2);
       }
       else if(name == "-") {
+        auto n1 = compile_expr(list->get(1));
+        auto n2 = compile_expr(list->get(2));
+        return builder.CreateSub(n1, n2);
       }
       else if(name == "*") {
+        auto n1 = compile_expr(list->get(1));
+        auto n2 = compile_expr(list->get(2));
+        return builder.CreateMul(n1, n2);
       }
       else if(name == "=") {
-        auto n1 = regard<Integer>(list->get(1))->value;
-        auto n2 = regard<Integer>(list->get(2))->value;
-        return builder.CreateICmpEQ(builder.getInt32(n1), builder.getInt32(n2));
+        auto n1 = compile_expr(list->get(1));
+        auto n2 = compile_expr(list->get(2));
+        return builder.CreateICmpEQ(n1, n2);
       }
       else if(name == ">") {
+        auto n1 = compile_expr(list->get(1));
+        auto n2 = compile_expr(list->get(2));
+        return builder.CreateICmpSGT(n1, n2);
       }
       else if(name == "mod") {
       }
