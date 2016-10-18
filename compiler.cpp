@@ -26,6 +26,12 @@ namespace Lisp {
     auto *printnType = llvm::FunctionType::get(builder.getVoidTy(), printnArgsRef, false);
     printnFunc = module->getOrInsertFunction("printn", printnType);
 
+    // char* itoa(int)
+    std::vector<llvm::Type*> itoaArgs{ builder.getInt32Ty() };
+    llvm::ArrayRef<llvm::Type*> itoaArgsRef(itoaArgs);
+    auto *itoaType = llvm::FunctionType::get(builder.getInt8PtrTy(), itoaArgsRef, false);
+    itoaFunc = module->getOrInsertFunction("itoa", itoaType);
+
     root_env = cur_env = new Environment();
   }
 
@@ -67,6 +73,10 @@ namespace Lisp {
         builder.CreateCall(printnFunc, num);
         return num; // TODO: 空のconsを返す
       }
+      else if(name == "itoa") {
+        auto num = compile_expr(list->get(1));
+        return builder.CreateCall(itoaFunc, num);
+      }
       else if(name == "setq") {
         auto val = compile_expr(list->get(2));
         auto val_name = regard<Symbol>(list->get(1))->value;
@@ -87,7 +97,8 @@ namespace Lisp {
           llvm_args.push_back(builder.getInt32Ty());
         }
         llvm::ArrayRef<llvm::Type*> llvm_args_ref(llvm_args);
-        auto func_type = llvm::FunctionType::get(builder.getInt32Ty(), llvm_args_ref, false);
+        // auto func_type = llvm::FunctionType::get(builder.getInt32Ty(), llvm_args_ref, false);
+        auto func_type = llvm::FunctionType::get(builder.getInt8PtrTy(), llvm_args_ref, false);
         auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, func_name, module);
 
         Environment *env = new Environment();
@@ -157,6 +168,9 @@ namespace Lisp {
         return builder.CreateICmpSGT(n1, n2);
       }
       else if(name == "mod") {
+        auto n1 = compile_expr(list->get(1));
+        auto n2 = compile_expr(list->get(2));
+        return builder.CreateSRem(n1, n2);
       }
       else if(name == "let") {
       }
@@ -166,7 +180,6 @@ namespace Lisp {
         return compile_exprs(list->tail(1));
       }
       else if(name == "cond") {
-        // TODO: n(>=2)の条件に対応
         auto condBB = llvm::BasicBlock::Create(module->getContext(), "cond", current_func);
         builder.CreateBr(condBB);
         builder.SetInsertPoint(condBB);

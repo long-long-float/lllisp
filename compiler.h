@@ -47,6 +47,7 @@ namespace Lisp {
     llvm::Function *mainFunc;
     llvm::Constant *putsFunc;
     llvm::Constant *printnFunc;
+    llvm::Constant *itoaFunc;
 
     llvm::Function *current_func;
 
