@@ -216,6 +216,7 @@ namespace Lisp {
             builder.SetInsertPoint(thenBB);
 
             auto thenValue = compile_expr(cond_expr_pair->get(1));
+            thenBB = builder.GetInsertBlock();
             thenBBs.push_back(BB_Value(thenBB, thenValue));
             builder.CreateBr(mergeBB);
 

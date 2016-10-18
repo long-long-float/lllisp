@@ -1,5 +1,5 @@
 (defun fizzbuzz (n)
- (cond ((> 100 n) (progn
+ (cond ((> 101 n) (progn
    (print
     (cond
      ((= (mod n 15) 0) "FizzBuzz")
@@ -8,6 +8,6 @@
      ((itoa n))
      ))
    (fizzbuzz (+ n 1))))
-  ((print (itoa n)))))
+  ((print "finish"))))
 
 (fizzbuzz 1)
