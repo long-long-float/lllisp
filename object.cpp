@@ -50,6 +50,10 @@ namespace Lisp {
     else return (Cons*)tail(index - 1)->cdr;
   }
 
+  size_t Cons::size() {
+    return typeid(*this) != typeid(Nil) ? ((Cons*)cdr)->size() + 1 : 0;
+  }
+
   std::string Cons::lisp_str_child(bool show_bracket) {
     std::stringstream ss;
 

@@ -13,4 +13,11 @@
    (print "OK1")
    (print "OK2")
   ))
- ("NG"))
+ ((print "NG")))
+
+(print
+ (cond
+  ((= 1 2) "NG")
+  ((= 3 4) "NG")
+  ("OK")
+  ))

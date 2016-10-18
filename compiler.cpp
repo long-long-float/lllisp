@@ -1,5 +1,7 @@
 #include "compiler.h"
 
+#include <iostream>
+
 #define EACH_CONS(var, init) for(Cons* var = regard<Cons>(init) ; typeid(*var) != typeid(Nil) ; var = (Cons*)regard<Cons>(var)->cdr)
 
 namespace Lisp {
@@ -58,12 +60,12 @@ namespace Lisp {
         auto str = compile_expr(list->get(1));
 
         builder.CreateCall(putsFunc, str);
-        return nullptr; // TODO: 空のconsを返す
+        return str; // TODO: 空のconsを返す
       }
       else if(name == "printn") {
         auto num = compile_expr(list->get(1));
         builder.CreateCall(printnFunc, num);
-        return nullptr; // TODO: 空のconsを返す
+        return num; // TODO: 空のconsを返す
       }
       else if(name == "setq") {
         auto val = compile_expr(list->get(2));
@@ -169,47 +171,60 @@ namespace Lisp {
         builder.CreateBr(condBB);
         builder.SetInsertPoint(condBB);
 
-        auto cond = compile_expr(regard<Cons>(list->get(1))->get(0));
-        auto thenBB = llvm::BasicBlock::Create(module->getContext(), "then", current_func);
-        auto elseBB = llvm::BasicBlock::Create(module->getContext(), "else");
+        using BB_Value = std::pair<llvm::BasicBlock*, llvm::Value*>;
+
+        BB_Value elseBB;
         auto mergeBB = llvm::BasicBlock::Create(module->getContext(), "endcond");
 
-        builder.CreateCondBr(cond, thenBB, elseBB);
+        std::vector<BB_Value> thenBBs;
 
-        // then
-        builder.SetInsertPoint(thenBB);
+        EACH_CONS(val, list->tail(1)) {
+          auto cond_expr_pair = regard<Cons>(val->get(0));
 
-        auto thenValue = compile_expr(regard<Cons>(list->get(1))->get(1));
-        builder.CreateBr(mergeBB);
+          if (cond_expr_pair->size() == 1) { // else
+            elseBB.second = compile_expr(cond_expr_pair->get(0));
+            builder.CreateBr(mergeBB);
 
-        thenBB = builder.GetInsertBlock();
+            // elseBB = builder.GetInsertBlock();
 
-        // else
-        current_func->getBasicBlockList().push_back(elseBB);
-        builder.SetInsertPoint(elseBB);
+            // cond must be fisished with one expr
+            break;
 
-        auto elseValue = compile_exprs(regard<Cons>(list->get(2)));
-        builder.CreateBr(mergeBB);
+          } else { // then
+            auto cond = compile_expr(cond_expr_pair->get(0));
+            auto thenBB = llvm::BasicBlock::Create(module->getContext(), "then");
+            auto _elseBB = llvm::BasicBlock::Create(module->getContext(), "else");
+            elseBB.first = _elseBB;
 
-        elseBB = builder.GetInsertBlock();
+            builder.CreateCondBr(cond, thenBB, _elseBB);
 
-        // endif
+            // %then
+            current_func->getBasicBlockList().push_back(thenBB);
+            builder.SetInsertPoint(thenBB);
+
+            auto thenValue = compile_expr(cond_expr_pair->get(1));
+            thenBBs.push_back(BB_Value(thenBB, thenValue));
+            builder.CreateBr(mergeBB);
+
+            // %else
+            current_func->getBasicBlockList().push_back(_elseBB);
+            builder.SetInsertPoint(_elseBB);
+
+            // thenBBs[thenBBs.size() - 1] = builder.GetInsertBlock();
+          }
+        }
+
         current_func->getBasicBlockList().push_back(mergeBB);
         builder.SetInsertPoint(mergeBB);
 
-        // TODO:
-        if (!thenValue) {
-          return elseValue;
-        } else if (!elseValue) {
-          return thenValue;
-        } else {
-          // auto phi = builder.CreatePHI(builder.getInt8PtrTy(), 2, "iftmp");
-          auto phi = builder.CreatePHI(builder.getInt32Ty(), 2, "iftmp");
-          phi->addIncoming(thenValue, thenBB);
-          phi->addIncoming(elseValue, elseBB);
-
-          return phi;
+        auto phi = builder.CreatePHI(builder.getInt8PtrTy(), 2, "condtmp");
+        // auto phi = builder.CreatePHI(builder.getInt32Ty(), 2, "condtmp");
+        for (auto thenBB : thenBBs) {
+          phi->addIncoming(thenBB.second, thenBB.first);
         }
+        phi->addIncoming(elseBB.second, elseBB.first);
+
+        return phi;
       }
       else if(name == "cons") {
       }

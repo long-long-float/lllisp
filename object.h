@@ -77,6 +77,8 @@ namespace Lisp {
     int find(Object *item);
     Cons* tail(size_t index);
 
+    size_t size();
+
   private:
     std::string lisp_str_child(bool show_bracket);
   };
