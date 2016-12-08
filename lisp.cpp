@@ -230,12 +230,12 @@ int main() {
 
   Lisp::clean_up();
 
-  compiler.getModule()->dump();
+  // compiler.get_module()->dump();
 
   // generate bitcode
   std::error_code error_info;
   llvm::raw_fd_ostream os("a.bc", error_info, llvm::sys::fs::OpenFlags::F_None);
-  llvm::WriteBitcodeToFile(compiler.getModule(), os);
+  llvm::WriteBitcodeToFile(compiler.get_module(), os);
 
   return 0;
 }

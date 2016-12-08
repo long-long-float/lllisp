@@ -37,7 +37,7 @@ namespace Lisp {
 
     void compile(std::vector<Object*> &ast);
 
-    llvm::Module* getModule() { return module; }
+    llvm::Module* get_module() { return module; }
 
   private:
     llvm::LLVMContext &context;
@@ -59,6 +59,8 @@ namespace Lisp {
     Environment *root_env, *cur_env;
 
     template<typename T> T* regard(Object* expr);
+
+    llvm::Type* get_llvm_type(Symbol *name);
   };
 
   std::string compile(std::vector<Object*> &ast);

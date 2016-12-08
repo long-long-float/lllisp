@@ -55,6 +55,17 @@ namespace Lisp {
     return result;
   }
 
+  llvm::Type* Compiler::get_llvm_type(Symbol *name) {
+    if (name->value == "int") {
+      return builder.getInt32Ty();
+    } else if (name->value == "string") {
+      return builder.getInt8PtrTy();
+      // TODO: add intlist
+    } else {
+      throw Error("undefined type " + name->value, name->loc);
+    }
+  }
+
   llvm::Value* Compiler::compile_expr(Object* obj) {
     std::type_info const & id = typeid(*obj);
     if(id == typeid(Cons)) {
@@ -88,17 +99,17 @@ namespace Lisp {
       }
       else if(name == "defun") {
         auto func_name = regard<Symbol>(list->get(1))->value;
-        auto args = regard<Cons>(list->get(2));
-        auto body = regard<Cons>(list->tail(3));
+        auto args      = regard<Cons>(list->get(2));
+        auto arg_types = regard<Cons>(list->get(3));
+        auto ret_type  = regard<Symbol>(list->get(4));
+        auto body      = regard<Cons>(list->tail(5));
 
-        // TODO: 引数、返り値ともにint以外に対応させる
         std::vector<llvm::Type*> llvm_args;
-        EACH_CONS(arg, args) {
-          llvm_args.push_back(builder.getInt32Ty());
+        EACH_CONS(arg_type, arg_types) {
+          llvm_args.push_back(get_llvm_type(regard<Symbol>(arg_type->get(0))));
         }
         llvm::ArrayRef<llvm::Type*> llvm_args_ref(llvm_args);
-        // auto func_type = llvm::FunctionType::get(builder.getInt32Ty(), llvm_args_ref, false);
-        auto func_type = llvm::FunctionType::get(builder.getInt8PtrTy(), llvm_args_ref, false);
+        auto func_type = llvm::FunctionType::get(get_llvm_type(ret_type), llvm_args_ref, false);
         auto func = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, func_name, module);
 
         Environment *env = new Environment();
@@ -119,11 +130,14 @@ namespace Lisp {
         builder.SetInsertPoint(entry);
 
         auto &vs_table = func->getValueSymbolTable();
+        auto arg_type = arg_types;
         EACH_CONS(arg, args) {
           auto arg_name = regard<Symbol>(arg->get(0))->value;
-          auto alloca = builder.CreateAlloca(builder.getInt32Ty(), 0, arg_name);
+          auto alloca = builder.CreateAlloca(get_llvm_type(regard<Symbol>(arg_type->get(0))), 0, arg_name);
           builder.CreateStore(vs_table.lookup(arg_name), alloca);
           env->set(arg_name, alloca);
+
+          arg_type = (Cons*)arg_type->cdr;
         }
 
         auto prev_func = current_func;
@@ -180,6 +194,7 @@ namespace Lisp {
         return compile_exprs(list->tail(1));
       }
       else if(name == "cond") {
+        auto ret_type = regard<Symbol>(list->get(1));
         auto condBB = llvm::BasicBlock::Create(module->getContext(), "cond", current_func);
         builder.CreateBr(condBB);
         builder.SetInsertPoint(condBB);
@@ -191,7 +206,7 @@ namespace Lisp {
 
         std::vector<BB_Value> thenBBs;
 
-        EACH_CONS(val, list->tail(1)) {
+        EACH_CONS(val, list->tail(2)) {
           auto cond_expr_pair = regard<Cons>(val->get(0));
 
           if (cond_expr_pair->size() == 1) { // else
@@ -231,8 +246,7 @@ namespace Lisp {
         current_func->getBasicBlockList().push_back(mergeBB);
         builder.SetInsertPoint(mergeBB);
 
-        auto phi = builder.CreatePHI(builder.getInt8PtrTy(), 2, "condtmp");
-        // auto phi = builder.CreatePHI(builder.getInt32Ty(), 2, "condtmp");
+        auto phi = builder.CreatePHI(get_llvm_type(ret_type), 2, "condtmp");
         for (auto thenBB : thenBBs) {
           phi->addIncoming(thenBB.second, thenBB.first);
         }
