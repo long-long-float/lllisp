@@ -8,5 +8,8 @@ lisp: lisp.o object.o gc.o token.o environment.o compiler.o
 lib: lib.c
 	clang -emit-llvm -S -O -o lib.ll lib.c
 
+test:
+	./test.sh
+
 clean:
 	@rm -f *.o *.ll lisp
