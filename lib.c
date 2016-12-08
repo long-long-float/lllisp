@@ -6,7 +6,7 @@ void printn(int n) {
 }
 
 char* itoa(int n) {
-  // TODO: fix memory leak
+  // TODO: fix memory leak and buffer overflow
     char* buf = malloc(sizeof(char) * 100);
     sprintf(buf, "%d", n);
     return buf;

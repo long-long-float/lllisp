@@ -138,10 +138,10 @@ namespace Lisp {
 
         builder.SetInsertPoint(main_entry);
       }
-      else if(name == "defmacro") {
-      }
-      else if(name == "atom") {
-      }
+      // else if(name == "defmacro") {
+      // }
+      // else if(name == "atom") {
+      // }
       else if(name == "+") {
         auto n1 = compile_expr(list->get(1));
         auto n2 = compile_expr(list->get(2));
@@ -172,10 +172,10 @@ namespace Lisp {
         auto n2 = compile_expr(list->get(2));
         return builder.CreateSRem(n1, n2);
       }
-      else if(name == "let") {
-      }
-      else if(name == "lambda") {
-      }
+      // else if(name == "let") {
+      // }
+      // else if(name == "lambda") {
+      // }
       else if(name == "progn") {
         return compile_exprs(list->tail(1));
       }
@@ -240,10 +240,10 @@ namespace Lisp {
 
         return phi;
       }
-      else if(name == "cons") {
-      }
-      else if(name == "list") {
-      }
+      // else if(name == "cons") {
+      // }
+      // else if(name == "list") {
+      // }
       else {
         auto func = cur_env->get(name);
 
