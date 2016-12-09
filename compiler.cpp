@@ -14,29 +14,41 @@ namespace Lisp {
     builder.SetInsertPoint(main_entry);
 
     // int puts(char*)
-    std::vector<llvm::Type*> putsArgs;
-    putsArgs.push_back(builder.getInt8PtrTy());
-    llvm::ArrayRef<llvm::Type*> putsArgsRef(putsArgs);
-    auto *putsType = llvm::FunctionType::get(builder.getInt32Ty(), putsArgsRef, false);
-    putsFunc = module->getOrInsertFunction("puts", putsType);
+    std::vector<llvm::Type*> putsArgs { builder.getInt8PtrTy() };
+    putsFunc = define_function("puts", putsArgs, builder.getInt32Ty());
+
+    // ilist* cons(int32_t car, ilist *cdr) {
+    auto ilist_sym = new Symbol("ilist");
+    auto ilist_ptr_type = get_llvm_type(ilist_sym);
+    std::vector<llvm::Type*> consArgs { builder.getInt32Ty(), ilist_ptr_type };
+    consFunc = define_function("cons", consArgs, ilist_ptr_type);
+
+    // ilist* nil()
+    nilFunc = define_function("nil", std::vector<llvm::Type*>(), ilist_ptr_type);
 
     // void printn(int)
     std::vector<llvm::Type*> printnArgs{ builder.getInt32Ty() };
-    llvm::ArrayRef<llvm::Type*> printnArgsRef(printnArgs);
-    auto *printnType = llvm::FunctionType::get(builder.getVoidTy(), printnArgsRef, false);
-    printnFunc = module->getOrInsertFunction("printn", printnType);
+    printnFunc = define_function("printn", printnArgs, builder.getVoidTy());
+
+    // void printl(ilist*)
+    std::vector<llvm::Type*> printlArgs{ ilist_ptr_type };
+    printlFunc = define_function("printl", printlArgs, builder.getVoidTy());
 
     // char* itoa(int)
     std::vector<llvm::Type*> itoaArgs{ builder.getInt32Ty() };
-    llvm::ArrayRef<llvm::Type*> itoaArgsRef(itoaArgs);
-    auto *itoaType = llvm::FunctionType::get(builder.getInt8PtrTy(), itoaArgsRef, false);
-    itoaFunc = module->getOrInsertFunction("itoa", itoaType);
+    itoaFunc = define_function("itoa", itoaArgs, builder.getInt8PtrTy());
 
     root_env = cur_env = new Environment();
   }
 
   Compiler::~Compiler() {
     delete module;
+  }
+
+  llvm::Constant* Compiler::define_function(std::string name, std::vector<llvm::Type*> arg_types, llvm::Type* result_type) {
+    llvm::ArrayRef<llvm::Type*> args_ref(arg_types);
+    auto *func_type = llvm::FunctionType::get(result_type, args_ref, false);
+    return module->getOrInsertFunction(name, func_type);
   }
 
   void Compiler::compile(std::vector<Object*> &ast) {
@@ -61,6 +73,14 @@ namespace Lisp {
     } else if (name->value == "string") {
       return builder.getInt8PtrTy();
       // TODO: add intlist
+    } else if (name->value == "ilist") {
+      auto struct_type = llvm::StructType::create(context, "ilist");
+      std::vector<llvm::Type*> members {
+        builder.getInt32Ty(),
+        llvm::PointerType::get(struct_type, ADDRESS_SPACE),
+      };
+      struct_type->setBody(members);
+      return struct_type;
     } else {
       throw Error("undefined type " + name->value, name->loc);
     }
@@ -83,6 +103,11 @@ namespace Lisp {
         auto num = compile_expr(list->get(1));
         builder.CreateCall(printnFunc, num);
         return num; // TODO: 空のconsを返す
+      }
+      else if(name == "printl") {
+        auto xs = compile_expr(list->get(1));
+        builder.CreateCall(printlFunc, xs);
+        return xs; // TODO: 空のconsを返す
       }
       else if(name == "itoa") {
         auto num = compile_expr(list->get(1));
@@ -254,8 +279,14 @@ namespace Lisp {
 
         return phi;
       }
-      // else if(name == "cons") {
-      // }
+      else if(name == "cons") {
+        auto car = compile_expr(list->get(1));
+        auto cdr = compile_expr(list->get(2));
+
+        std::vector<llvm::Value*> args { car, cdr };
+        llvm::ArrayRef<llvm::Value*> args_ref(args);
+        return builder.CreateCall(consFunc, args);
+      }
       // else if(name == "list") {
       // }
       else {
@@ -320,6 +351,9 @@ namespace Lisp {
         throw std::logic_error("undefined variable: " + var_name);
       }
       return builder.CreateLoad(var);
+    }
+    else if(id == typeid(Nil)) {
+      return builder.CreateCall(nilFunc);
     }
     else if(id == typeid(String)) {
       return builder.CreateGlobalStringPtr(regard<String>(obj)->value.c_str());

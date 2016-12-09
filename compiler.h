@@ -14,6 +14,8 @@
 #include "environment.h"
 
 namespace Lisp {
+  const unsigned ADDRESS_SPACE = 8;
+
   class Error : public std::logic_error {
   public:
     Error(std::string msg, Location loc) : std::logic_error(msg + " @ " + loc.str()) {}
@@ -46,12 +48,16 @@ namespace Lisp {
 
     llvm::Function *mainFunc;
     llvm::Constant *putsFunc;
+    llvm::Constant *consFunc;
+    llvm::Constant *nilFunc;
     llvm::Constant *printnFunc;
+    llvm::Constant *printlFunc;
     llvm::Constant *itoaFunc;
-
     llvm::Function *current_func;
 
     llvm::BasicBlock *main_entry;
+
+    llvm::Constant* define_function(std::string name, std::vector<llvm::Type*> arg_types, llvm::Type* result_type);
 
     llvm::Value* compile_exprs(Cons* exprs);
     llvm::Value* compile_expr(Object* obj);
