@@ -13,6 +13,14 @@ namespace Lisp {
     main_entry = llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
     builder.SetInsertPoint(main_entry);
 
+    auto struct_type = llvm::StructType::create(context, "ilist");
+    std::vector<llvm::Type*> members {
+      builder.getInt32Ty(),
+      llvm::PointerType::getUnqual(struct_type),
+    };
+    struct_type->setBody(members);
+    ilist_ptr_type = llvm::PointerType::getUnqual(struct_type);
+
     // int puts(char*)
     std::vector<llvm::Type*> putsArgs { builder.getInt8PtrTy() };
     putsFunc = define_function("puts", putsArgs, builder.getInt32Ty());
@@ -74,15 +82,20 @@ namespace Lisp {
       return builder.getInt8PtrTy();
       // TODO: add intlist
     } else if (name->value == "ilist") {
-      auto struct_type = llvm::StructType::create(context, "ilist");
-      std::vector<llvm::Type*> members {
-        builder.getInt32Ty(),
-        llvm::PointerType::get(struct_type, ADDRESS_SPACE),
-      };
-      struct_type->setBody(members);
-      return struct_type;
+      return ilist_ptr_type;
     } else {
       throw Error("undefined type " + name->value, name->loc);
+    }
+  }
+
+  llvm::Value* Compiler::create_list(Object* values) {
+    if (typeid(*values) == typeid(Nil)) {
+      return builder.CreateCall(nilFunc, std::vector<llvm::Value*>());
+    } else {
+      auto cons = regard<Cons>(values);
+      std::vector<llvm::Value*> args { compile_expr(cons->car), create_list(cons->cdr) };
+      llvm::ArrayRef<llvm::Value*> args_ref(args);
+      return builder.CreateCall(consFunc, args);
     }
   }
 
@@ -284,11 +297,19 @@ namespace Lisp {
         auto cdr = compile_expr(list->get(2));
 
         std::vector<llvm::Value*> args { car, cdr };
-        llvm::ArrayRef<llvm::Value*> args_ref(args);
         return builder.CreateCall(consFunc, args);
       }
-      // else if(name == "list") {
-      // }
+      else if(name == "car") {
+        auto xs = compile_expr(list->get(1));
+        return builder.CreateExtractValue(builder.CreateLoad(xs), 0);
+      }
+      else if(name == "cdr") {
+        auto xs = compile_expr(list->get(1));
+        return builder.CreateExtractValue(builder.CreateLoad(xs), 1);
+      }
+      else if(name == "list") {
+        return create_list(list->tail(1));
+      }
       else {
         auto func = cur_env->get(name);
 

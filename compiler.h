@@ -55,9 +55,13 @@ namespace Lisp {
     llvm::Constant *itoaFunc;
     llvm::Function *current_func;
 
+    llvm::PointerType *ilist_ptr_type;
+
     llvm::BasicBlock *main_entry;
 
     llvm::Constant* define_function(std::string name, std::vector<llvm::Type*> arg_types, llvm::Type* result_type);
+
+    llvm::Value* create_list(Object* values);
 
     llvm::Value* compile_exprs(Cons* exprs);
     llvm::Value* compile_expr(Object* obj);

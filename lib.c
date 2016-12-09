@@ -30,6 +30,14 @@ ilist* cons(int32_t car, ilist *cdr) {
   return list;
 }
 
+int32_t car(ilist *xs) {
+  return xs->car;
+}
+
+ilist* cdr(ilist *xs) {
+  return xs->cdr;
+}
+
 ilist NIL = {0, NULL};
 ilist* nil() {
   return &NIL;
