@@ -334,43 +334,6 @@ namespace Lisp {
         llvm::ArrayRef<llvm::Value*> callee_args_ref(callee_args);
 
         return builder.CreateCall((llvm::Function*)func, callee_args_ref);
-
-        /*
-        auto obj = evaluate(list->get(0));
-        if(typeid(*obj) == typeid(Lambda)) {
-          Lambda* lambda = (Lambda*)obj;
-
-          Environment *env = new Environment();
-          size_t index = 1;
-          EACH_CONS(cc, lambda->args) {
-            if(typeid(*cc->car) == typeid(Nil)) break; //TODO なんとかする
-            auto name = regard<Symbol>(cc->car)->value;
-            env->set(name, evaluate(list->get(index)));
-
-            index++;
-          }
-          env->set_lexical_parent(lambda->lexical_parent);
-
-          cur_env = cur_env->down_env(env);
-
-          Object* ret;
-          EACH_CONS(cc, lambda->body) {
-            ret = evaluate(cc->car);
-          }
-
-          cur_env = cur_env->up_env();
-          return ret;
-        }
-        else if(typeid(*obj) == typeid(Macro)) {
-          Macro* mac = (Macro*)obj;
-
-          auto expanded = mac->expand(list->tail(1));
-          return evaluate(expanded);
-        }
-        else {
-          throw std::logic_error("undefined function: " + name);
-        }
-        */
       }
     }
     else if(id == typeid(Symbol)) {
