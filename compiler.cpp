@@ -34,6 +34,10 @@ namespace Lisp {
     // ilist* nil()
     nilFunc = define_function("nil", std::vector<llvm::Type*>(), ilist_ptr_type);
 
+    // bool nilq(ilist*)
+    std::vector<llvm::Type*> nilqArgs { ilist_ptr_type };
+    nilqFunc = define_function("nilq", std::vector<llvm::Type*>(), builder.getInt1Ty());
+
     // void printn(int)
     std::vector<llvm::Type*> printnArgs{ builder.getInt32Ty() };
     printnFunc = define_function("printn", printnArgs, builder.getVoidTy());
@@ -309,6 +313,10 @@ namespace Lisp {
       }
       else if(name == "list") {
         return create_list(list->tail(1));
+      }
+      else if(name == "nil?") {
+        auto xs = compile_expr(list->get(1));
+        return builder.CreateCall(nilqFunc, xs);
       }
       else {
         auto func = cur_env->get(name);

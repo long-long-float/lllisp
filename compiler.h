@@ -50,6 +50,7 @@ namespace Lisp {
     llvm::Constant *putsFunc;
     llvm::Constant *consFunc;
     llvm::Constant *nilFunc;
+    llvm::Constant *nilqFunc;
     llvm::Constant *printnFunc;
     llvm::Constant *printlFunc;
     llvm::Constant *itoaFunc;
