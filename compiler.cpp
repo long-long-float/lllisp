@@ -84,7 +84,6 @@ namespace Lisp {
       return builder.getInt32Ty();
     } else if (name->value == "string") {
       return builder.getInt8PtrTy();
-      // TODO: add intlist
     } else if (name->value == "ilist") {
       return ilist_ptr_type;
     } else {
@@ -131,10 +130,11 @@ namespace Lisp {
         return builder.CreateCall(itoaFunc, num);
       }
       else if(name == "setq") {
-        auto val = compile_expr(list->get(2));
-        auto val_name = regard<Symbol>(list->get(1))->value;
-        // TODO: 型をInt以外使えるようにする
-        auto var_pointer = builder.CreateAlloca(builder.getInt32Ty(), nullptr, val_name);
+        auto val = compile_expr(list->get(3));
+        auto val_name = regard<Symbol>(list->get(2))->value;
+        auto type = get_llvm_type(regard<Symbol>(list->get(1)));
+
+        auto var_pointer = builder.CreateAlloca(type, nullptr, val_name);
         builder.CreateStore(val, var_pointer);
         cur_env->set(val_name, var_pointer);
         return val;
