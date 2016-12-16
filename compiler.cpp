@@ -237,9 +237,6 @@ namespace Lisp {
       }
       else if(name == "cond") {
         auto ret_type = regard<Symbol>(list->get(1));
-        auto condBB = llvm::BasicBlock::Create(module->getContext(), "cond", current_func);
-        builder.CreateBr(condBB);
-        builder.SetInsertPoint(condBB);
 
         using BB_Value = std::pair<llvm::BasicBlock*, llvm::Value*>;
 
